@@ -2,14 +2,20 @@ import streamlit as st
 import math
 
 # --- Session State Initialization ---
-if 'display' not in st.session_state:
-    st.session_state.display = '0'
+if 'input_expr' not in st.session_state:
+    st.session_state.input_expr = '0'
+if 'result' not in st.session_state:
+    st.session_state.result = ''
+if 'kb_input' not in st.session_state:
+    st.session_state.kb_input = ''
 
 # --- Expression Evaluation Function ---
 def evaluate_expression(expr):
     try:
         expr = expr.replace('^', '**').replace('√', 'math.sqrt')
-        result = eval(expr, {"__builtins__": None, "math": math})
+        expr = expr.replace('π', str(math.pi))
+        expr = expr.replace('×', '*').replace('−', '-').replace('＋', '+')
+        result = eval(expr, {"_builtins_": None, "math": math})
         return str(result)
     except:
         return "Error"
@@ -17,73 +23,81 @@ def evaluate_expression(expr):
 # --- Button Click Handler ---
 def button_click(value):
     if value == 'C':
-        st.session_state.display = '0'
+        st.session_state.input_expr = '0'
+        st.session_state.result = ''
+        st.session_state.kb_input = ''  # Clear keyboard input as well
     elif value == '=':
-        st.session_state.display = evaluate_expression(st.session_state.display)
+        st.session_state.result = evaluate_expression(st.session_state.input_expr)
     elif value == '±':
-        if st.session_state.display.startswith('-'):
-            st.session_state.display = st.session_state.display[1:]
-        elif st.session_state.display != '0':
-            st.session_state.display = '-' + st.session_state.display
+        if st.session_state.input_expr.startswith('-'):
+            st.session_state.input_expr = st.session_state.input_expr[1:]
+        elif st.session_state.input_expr != '0':
+            st.session_state.input_expr = '-' + st.session_state.input_expr
     elif value == '√':
-        st.session_state.display = f"√{st.session_state.display}"
+        st.session_state.input_expr = f"√({st.session_state.input_expr})"
     elif value == '^':
-        st.session_state.display += '^'
+        st.session_state.input_expr += '^'
     else:
-        if st.session_state.display in ['0', 'Error']:
-            st.session_state.display = value
+        if st.session_state.input_expr in ['0', 'Error']:
+            st.session_state.input_expr = value
         else:
-            st.session_state.display += value
+            st.session_state.input_expr += value
 
-# --- Page Layout Config ---
-st.set_page_config(page_title="Advanced Calculator", layout="centered")
-st.markdown("## 🧮 **Advanced Calculator**")
-st.markdown("Type directly using your keyboard (e.g. `5+5`, `√16`, `2^3`) and press **Enter**")
+# --- Page Layout ---
+st.set_page_config(page_title="🧮 Enhanced Calculator", layout="centered")
+st.markdown("<h2 style='text-align: center;'>🧮 Enhanced Calculator</h2>", unsafe_allow_html=True)
 
-# --- Keyboard Input with Live Evaluation ---
+# --- Display Input and Result ---
+st.markdown("### ➤ Expression:")
+st.text_input("", value=st.session_state.input_expr, key="expression_display", disabled=True, label_visibility="collapsed")
+
+st.markdown("### ➤ Result:")
+st.text_input("", value=st.session_state.result, key="result_display", disabled=True, label_visibility="collapsed")
+
+# --- Keyboard Input (Fixed) ---
 kb_input = st.text_input(
-    label="Type your expression and press Enter:",
-    value='',
+    label="Or type an expression and press Enter:",
+    value=st.session_state.kb_input,
     key="keyboard_input",
-    label_visibility="collapsed",
+    label_visibility="visible",
     placeholder="e.g. 5+5 or √16 or 2^3",
 )
 
-if kb_input:
-    result = evaluate_expression(kb_input)
-    st.session_state.display = result
+# Handle keyboard input
+if kb_input and kb_input != st.session_state.kb_input:
+    st.session_state.input_expr = kb_input
+    st.session_state.result = evaluate_expression(kb_input)
+    st.session_state.kb_input = kb_input  # Store the current input
+    st.rerun()
 
-# --- Display the Result ---
-st.markdown("### ➤ Result:")
-st.text_input("", value=st.session_state.display, key="calc_display", disabled=True, label_visibility="collapsed")
+# --- Calculator Buttons Layout ---
+def create_row(buttons):
+    cols = st.columns(len(buttons))
+    for col, label in zip(cols, buttons):
+        if label:
+            col.button(label, on_click=button_click, args=(label,), use_container_width=True)
+        else:
+            col.markdown(" ")  # Empty placeholder
 
-# --- Calculator Buttons Grid ---
-col1, col2, col3, col4, col5 = st.columns(5)
+# Button Grid
+create_row(["7", "8", "9", "/", "√"])
+create_row(["4", "5", "6", "×", "^"])
+create_row(["1", "2", "3", "−", "±"])
+create_row(["0", ".", "＋", "=", "C"])
 
-# Row 1
-with col1: st.button("7", on_click=button_click, args=('7',), use_container_width=True)
-with col2: st.button("8", on_click=button_click, args=('8',), use_container_width=True)
-with col3: st.button("9", on_click=button_click, args=('9',), use_container_width=True)
-with col4: st.button("/", on_click=button_click, args=('/',), use_container_width=True)
-with col5: st.button("√", on_click=button_click, args=('√',), use_container_width=True)
-
-# Row 2
-with col1: st.button("4", on_click=button_click, args=('4',), use_container_width=True)
-with col2: st.button("5", on_click=button_click, args=('5',), use_container_width=True)
-with col3: st.button("6", on_click=button_click, args=('6',), use_container_width=True)
-with col4: st.button(".*", on_click=button_click, args=('*',), use_container_width=True)
-with col5: st.button("^", on_click=button_click, args=('^',), use_container_width=True)
-
-# Row 3
-with col1: st.button("1", on_click=button_click, args=('1',), use_container_width=True)
-with col2: st.button("2", on_click=button_click, args=('2',), use_container_width=True)
-with col3: st.button("3", on_click=button_click, args=('3',), use_container_width=True)
-with col4: st.button((".-"), on_click=button_click, args=('-',), use_container_width=True)
-with col5: st.button("±", on_click=button_click, args=('±',), use_container_width=True)
-
-# Row 4
-with col1: st.button("0", on_click=button_click, args=('0',), use_container_width=True)
-with col2: st.button(".", on_click=button_click, args=('.',), use_container_width=True)
-with col3: st.button((".+"), on_click=button_click, args=('+',), use_container_width=True)
-with col4: st.button("=", on_click=button_click, args=('=',), use_container_width=True)
-with col5: st.button("C", on_click=button_click, args=('C',), use_container_width=True)
+# --- Optional Styling ---
+st.markdown("""
+<style>
+    .stButton>button {
+        height: 3em;
+        font-size: 1.3em;
+        margin: 0.2em;
+    }
+    .stTextInput>div>input {
+        font-size: 1.5em;
+        text-align: right;
+        background-color: #f3f3f3;
+        padding: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
